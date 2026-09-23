@@ -15,6 +15,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as ApplySchemeIdRouteImport } from './routes/apply/$schemeId'
 import { Route as SchemesIndexRouteImport } from './routes/schemes/index'
 import { Route as SchemesSchemeIdRouteImport } from './routes/schemes/$schemeId'
 
@@ -48,6 +49,11 @@ const ProfileRoute = ProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApplySchemeIdRoute = ApplySchemeIdRouteImport.update({
+  id: '/apply/$schemeId',
+  path: '/apply/$schemeId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SchemesIndexRoute = SchemesIndexRouteImport.update({
   id: '/schemes/',
   path: '/schemes/',
@@ -66,6 +72,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/notifications': typeof NotificationsRoute
   '/profile': typeof ProfileRoute
+  '/apply/$schemeId': typeof ApplySchemeIdRoute
   '/schemes/$schemeId': typeof SchemesSchemeIdRoute
   '/schemes/': typeof SchemesIndexRoute
 }
@@ -76,6 +83,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/notifications': typeof NotificationsRoute
   '/profile': typeof ProfileRoute
+  '/apply/$schemeId': typeof ApplySchemeIdRoute
   '/schemes/$schemeId': typeof SchemesSchemeIdRoute
   '/schemes': typeof SchemesIndexRoute
 }
@@ -87,6 +95,7 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/notifications': typeof NotificationsRoute
   '/profile': typeof ProfileRoute
+  '/apply/$schemeId': typeof ApplySchemeIdRoute
   '/schemes/$schemeId': typeof SchemesSchemeIdRoute
   '/schemes/': typeof SchemesIndexRoute
 }
@@ -99,6 +108,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/notifications'
     | '/profile'
+    | '/apply/$schemeId'
     | '/schemes/$schemeId'
     | '/schemes/'
   fileRoutesByTo: FileRoutesByTo
@@ -109,6 +119,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/notifications'
     | '/profile'
+    | '/apply/$schemeId'
     | '/schemes/$schemeId'
     | '/schemes'
   id:
@@ -119,6 +130,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/notifications'
     | '/profile'
+    | '/apply/$schemeId'
     | '/schemes/$schemeId'
     | '/schemes/'
   fileRoutesById: FileRoutesById
@@ -130,6 +142,7 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   NotificationsRoute: typeof NotificationsRoute
   ProfileRoute: typeof ProfileRoute
+  ApplySchemeIdRoute: typeof ApplySchemeIdRoute
   SchemesSchemeIdRoute: typeof SchemesSchemeIdRoute
   SchemesIndexRoute: typeof SchemesIndexRoute
 }
@@ -178,6 +191,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/apply/$schemeId': {
+      id: '/apply/$schemeId'
+      path: '/apply/$schemeId'
+      fullPath: '/apply/$schemeId'
+      preLoaderRoute: typeof ApplySchemeIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/schemes/': {
       id: '/schemes/'
       path: '/schemes'
@@ -202,6 +222,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   NotificationsRoute: NotificationsRoute,
   ProfileRoute: ProfileRoute,
+  ApplySchemeIdRoute: ApplySchemeIdRoute,
   SchemesSchemeIdRoute: SchemesSchemeIdRoute,
   SchemesIndexRoute: SchemesIndexRoute,
 }
