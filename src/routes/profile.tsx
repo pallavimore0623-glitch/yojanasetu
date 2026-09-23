@@ -112,7 +112,7 @@ function SelectField({
   return (
     <div className="space-y-2">
       <Label>{label}</Label>
-      <Select value={value || undefined} onValueChange={onChange}>
+      <Select {...(value ? { value } : {})} onValueChange={onChange}>
         <SelectTrigger className="w-full">
           <SelectValue placeholder={placeholder ?? "Select"} />
         </SelectTrigger>
