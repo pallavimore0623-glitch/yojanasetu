@@ -131,7 +131,7 @@ function ApplyPage() {
       scheme_id: s.id,
       application_ref: ref,
       status: "Submitted",
-      profile_snapshot: p as unknown as Record<string, unknown>,
+      profile_snapshot: JSON.parse(JSON.stringify(p)),
       extra_answers: { ...answers, documents },
       consent_given: true,
     });
