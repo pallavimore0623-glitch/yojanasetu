@@ -324,6 +324,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      rerun_scheme_matching: { Args: { _scheme_id: string }; Returns: number }
     }
     Enums: {
       [_ in never]: never
