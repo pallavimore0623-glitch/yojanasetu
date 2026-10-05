@@ -74,12 +74,81 @@ function AdminPage() {
     onError: () => toast.error("Could not enable demo admin access."),
   });
 
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const emptyForm = {
+    scheme_name: "",
+    description: "",
+    state: "All India",
+    category: "Education",
+    benefit: "",
+    age_min: "",
+    age_max: "",
+    income_max: "",
+    education_requirement: "",
+    student_required: "no",
+  };
+
+  const { data: alerts } = useQuery({
+    queryKey: ["admin-alerts"],
+    enabled: Boolean(isAdmin),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("notifications")
+        .select("id, profile_id, body, is_read, created_at, schemes(scheme_name)")
+        .order("created_at", { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      return data as Array<{
+        id: string;
+        profile_id: string;
+        body: string;
+        is_read: boolean;
+        created_at: string;
+        schemes: { scheme_name: string } | null;
+      }>;
+    },
+  });
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function startEdit(s: any) {
+    setEditingId(s.id);
+    setForm({
+      scheme_name: s.scheme_name ?? "",
+      description: s.description ?? "",
+      state: s.state ?? "All India",
+      category: s.category ?? "",
+      benefit: s.benefit ?? "",
+      age_min: s.age_min?.toString() ?? "",
+      age_max: s.age_max?.toString() ?? "",
+      income_max: s.income_max?.toString() ?? "",
+      education_requirement: (s.education_requirement ?? []).join(", "),
+      student_required: s.student_required ? "yes" : "no",
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  const rematch = useMutation({
+    mutationFn: async (id: string) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase.rpc as any)("rerun_scheme_matching", {
+        _scheme_id: id,
+      });
+      if (error) throw error;
+      return data as number;
+    },
+    onSuccess: (n) => {
+      toast.success(n ? `${n} new eligible profile(s) alerted.` : "No new matches found.");
+      queryClient.invalidateQueries({ queryKey: ["admin-alerts"] });
+    },
+    onError: () => toast.error("Could not run matching."),
+  });
+
   const addScheme = useMutation({
     mutationFn: async () => {
       if (!form.scheme_name.trim() || !form.benefit.trim()) {
         throw new Error("Scheme name and benefit are required.");
       }
-      const { error } = await supabase.from("schemes").insert({
+      const payload = {
         scheme_name: form.scheme_name.trim(),
         description: form.description.trim(),
         state: form.state,
@@ -89,19 +158,28 @@ function AdminPage() {
         age_max: form.age_max ? Number(form.age_max) : null,
         income_max: form.income_max ? Number(form.income_max) : null,
         education_requirement: form.education_requirement
-          ? form.education_requirement.split(",").map((s) => s.trim())
+          ? form.education_requirement.split(",").map((s) => s.trim()).filter(Boolean)
           : [],
-        student_required: form.student_required === "yes",
+        student_required: form.student_required.trim().toLowerCase() === "yes",
         is_demo: true,
-      });
+      };
+      const { error } = editingId
+        ? await supabase.from("schemes").update(payload).eq("id", editingId)
+        : await supabase.from("schemes").insert(payload);
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Scheme added. Eligible profiles have been alerted.");
-      setForm({ ...form, scheme_name: "", description: "", benefit: "" });
+      toast.success(
+        editingId
+          ? "Scheme updated. Use “Run matching” to alert newly eligible profiles."
+          : "Scheme added. Eligible profiles have been alerted.",
+      );
+      setEditingId(null);
+      setForm(emptyForm);
       queryClient.invalidateQueries({ queryKey: ["schemes"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-alerts"] });
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not add the scheme."),
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not save the scheme."),
   });
 
   if (isLoading) {
@@ -136,8 +214,8 @@ function AdminPage() {
 
       <Card className="mt-6">
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg">Add a sample scheme</CardTitle>
-          <CardDescription>All schemes added here are marked as sample data.</CardDescription>
+          <CardTitle className="text-lg">{editingId ? "Edit scheme" : "Add a sample scheme"}</CardTitle>
+          <CardDescription>All schemes saved here are marked as sample data.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2 sm:col-span-2">
@@ -210,11 +288,22 @@ function AdminPage() {
               onChange={(e) => setForm({ ...form, student_required: e.target.value })}
             />
           </div>
-          <div className="sm:col-span-2">
+          <div className="flex flex-wrap gap-2 sm:col-span-2">
             <Button onClick={() => addScheme.mutate()} disabled={addScheme.isPending}>
               {addScheme.isPending && <Loader2 className="size-4 animate-spin" />}
-              Add scheme and notify matches
+              {editingId ? "Save changes" : "Add scheme and notify matches"}
             </Button>
+            {editingId && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setEditingId(null);
+                  setForm(emptyForm);
+                }}
+              >
+                Cancel
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -222,6 +311,7 @@ function AdminPage() {
       <Card className="mt-6">
         <CardHeader className="pb-3">
           <CardTitle className="text-lg">All schemes ({(schemes ?? []).length})</CardTitle>
+          <CardDescription>Edit a scheme, or re-check it against every saved profile.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
           {(schemes ?? []).map((s) => (
@@ -229,15 +319,54 @@ function AdminPage() {
               key={s.id}
               className="flex flex-wrap items-center justify-between gap-2 border-b border-border py-2 text-sm last:border-0"
             >
-              <span className="font-medium">{s.scheme_name}</span>
-              <span className="text-muted-foreground">
-                {s.state} · added {formatDate(s.created_at)}
-              </span>
-              <Button asChild size="sm" variant="outline">
-                <Link to="/schemes/$schemeId" params={{ schemeId: s.id }}>
-                  View
-                </Link>
-              </Button>
+              <div>
+                <span className="font-medium">{s.scheme_name}</span>
+                <span className="block text-xs text-muted-foreground">
+                  {s.state} · added {formatDate(s.created_at)}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" variant="outline" onClick={() => startEdit(s)}>
+                  Edit
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={rematch.isPending}
+                  onClick={() => rematch.mutate(s.id)}
+                >
+                  Run matching
+                </Button>
+                <Button asChild size="sm" variant="ghost">
+                  <Link to="/schemes/$schemeId" params={{ schemeId: s.id }}>
+                    View
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      <Card className="mt-6">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg">Alerts sent ({(alerts ?? []).length})</CardTitle>
+          <CardDescription>Every “New Scheme Match” alert created for demo profiles.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {(alerts ?? []).length === 0 && (
+            <p className="text-sm text-muted-foreground">No alerts have been sent yet.</p>
+          )}
+          {(alerts ?? []).map((a) => (
+            <div key={a.id} className="border-b border-border py-2 text-sm last:border-0">
+              <div className="flex flex-wrap justify-between gap-2">
+                <span className="font-medium">{a.schemes?.scheme_name ?? "Scheme"}</span>
+                <span className="text-xs text-muted-foreground">
+                  Profile {a.profile_id.slice(0, 8)} · {a.is_read ? "Read" : "Unread"} ·{" "}
+                  {formatDate(a.created_at)}
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">{a.body}</p>
             </div>
           ))}
         </CardContent>
